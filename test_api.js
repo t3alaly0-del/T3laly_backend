@@ -4,7 +4,9 @@
  * Make sure your server is running first!
  */
 
-const BASE = 'http://192.168.1.10:3000/api';
+//const BASE = 'http://192.168.1.10:3000/api';
+const BASE = 'https://t3lalybackend-production.up.railway.app/api';
+
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -39,7 +41,8 @@ async function req(method, path, body) {
 
 async function testHealth() {
   console.log('\n📡 Health Check');
-  const res = await fetch(`http://192.168.1.10:3000/`);
+  //const res = await fetch(`http://192.168.1.10:3000/`);
+  const res = await fetch(`https://t3lalybackend-production.up.railway.app/`);
   const json = await res.json();
   log('Server is running', res.status === 200 && json.status?.includes('running'));
 }
