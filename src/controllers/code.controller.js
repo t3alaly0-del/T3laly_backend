@@ -75,24 +75,12 @@ exports.activateCode = async (req, res) => {
     const restore_code = 'RST-' + crypto.randomBytes(6).toString('hex').toUpperCase();
 
     await db.query(`UPDATE code_details SET used = true WHERE id = $1`, [code.id]);
-    // Get game_id from code chain
-    const gameResult = await db.query(
-      `SELECT c.game_id FROM code c
-       JOIN code_details cd ON cd.code_id = c.id
-       WHERE cd.id = $1`,
-      [code.id]
-    );
-    const game_id = gameResult.rows[0]?.game_id;
-
-    // Save device
     await db.query(
-      `INSERT INTO device 
-       (device_identifier, restore_code, code_details_id, device_token, device_token_issued_at)
+      `INSERT INTO device (device_identifier, restore_code, code_details_id, device_token, device_token_issued_at)
        VALUES ($1, $2, $3, $4, NOW())`,
       [device_identifier, restore_code, code.id, device_token]
     );
-
-    return res.json({ token: device_token, restore_code, game_id });
+    return res.json({ token: device_token, restore_code });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

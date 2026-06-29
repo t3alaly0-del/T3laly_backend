@@ -39,13 +39,7 @@ CREATE TABLE rules_details (
   game_id     INT REFERENCES game(id) ON DELETE CASCADE
 );
 
--- 6. Card_type (static behavior types: judge, default, …)
-CREATE TABLE card_type (
-  id   SERIAL PRIMARY KEY,
-  name VARCHAR(50) UNIQUE NOT NULL
-);
-
--- 7. Card
+-- 6. Card (now holds card type info)
 CREATE TABLE card (
   id            SERIAL PRIMARY KEY,
   name          VARCHAR(50) NOT NULL,
@@ -54,8 +48,6 @@ CREATE TABLE card (
   quantity      INT DEFAULT 10,
   detailed_desc TEXT,
   abstract_desc TEXT,
-  is_one_time   BOOLEAN DEFAULT FALSE,
-  card_type_id  INT REFERENCES card_type(id),
   game_id       INT REFERENCES game(id) ON DELETE CASCADE
 );
 
@@ -82,20 +74,12 @@ CREATE TABLE stickers_categories (
   created_at                 TIMESTAMP DEFAULT NOW()
 );
 
--- Card_details (after card_categories_details — needs FK)
+-- 7. Card_details (after card_categories_details — needs FK)
 CREATE TABLE card_details (
   id                         SERIAL PRIMARY KEY,
   card_id                    INT REFERENCES card(id) ON DELETE CASCADE,
   content                    TEXT,
   card_categories_details_id INT REFERENCES card_categories_details(id) ON DELETE CASCADE
-);
-
--- Judge_card: links a card to a judge category pool
-CREATE TABLE judge_card (
-  id                  SERIAL PRIMARY KEY,
-  card_id             INT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
-  judge_categories_id INT NOT NULL REFERENCES judge_categories(id) ON DELETE CASCADE,
-  UNIQUE (card_id, judge_categories_id)
 );
 
 -- 11. Code
@@ -133,17 +117,9 @@ ALTER TABLE card_categories_details
 ADD CONSTRAINT card_categories_details_name_categories_unique
 UNIQUE (name, categories_id);
 
-
-
-
-ALTER TABLE game DROP CONSTRAINT game_status_check;
-ALTER TABLE game ADD CONSTRAINT game_status_check 
-  CHECK (status IN ('open', 'freeze', 'coming_soon'));
-
-
 -- Game
 INSERT INTO game (name, content_version, status)
-VALUES ('احكيلى/ كيروكيلى', 1, 'open');
+VALUES ('T3alay', 1, 'open');
 
 -- Game details
 INSERT INTO game_details (description, min_players, game_id)
@@ -152,8 +128,6 @@ VALUES ('لعبة الكروت الاجتماعية', 3, 1);
 -- Judge categories
 INSERT INTO judge_categories (name, game_id) VALUES ('enkaz', 1);
 INSERT INTO judge_categories (name, game_id) VALUES ('reward', 1);
-
-
 
 -- Judge details enkaz
 INSERT INTO judge_details (judge_categories_id, description, status) VALUES
@@ -174,20 +148,11 @@ INSERT INTO judge_details (judge_categories_id, description, status) VALUES
 (2, 'معفي من غسيل الأكواب الليلة 🍽️', 'on'),
 (2, 'الكل يصفّق له تصفيق مكسيكي كامل 🙌', 'on');
 
--- Card types (behavior types)
-INSERT INTO card_type (name) VALUES ('judge'), ('default');
-
--- Cards
-INSERT INTO card (name, emoji, score, quantity, is_one_time, card_type_id, game_id) VALUES
-('كاريوكلى', '🎵', 0.5,  10, FALSE, (SELECT id FROM card_type WHERE name = 'default'), 1),
-('احكيلى',    '🔱', 1.0,  10, FALSE, (SELECT id FROM card_type WHERE name = 'default'), 1),
-('كرت الانقاذ',    '😈', -1.0, 10, TRUE,  (SELECT id FROM card_type WHERE name = 'judge'),   1);
-
--- Judge card links
-INSERT INTO judge_card (card_id, judge_categories_id)
-SELECT c.id, jc.id
-FROM card c, judge_categories jc
-WHERE c.name = 'كرت الانقاذ' AND jc.name = 'enkaz';
+-- Card types (kariokle / 8nely / enkaz)
+INSERT INTO card (name, emoji, score, quantity, game_id) VALUES
+('kariokle', '🎵', 0.5,  10, 1),
+('8nely',    '🔱', 1.0,  10, 1),
+('enkaz',    '😈', -1.0, 10, 1);
 
 -- Card categories
 INSERT INTO card_categories (game_id) VALUES (1);
@@ -195,6 +160,7 @@ INSERT INTO card_categories (game_id) VALUES (1);
 -- Card categories details
 INSERT INTO card_categories_details (name, emoji, categories_id) VALUES
 ('عاطفي',   '❤️', 1),
+('مضحك',    '😂', 1),
 ('جريء',    '🔥', 1),
 ('اجتماعي', '🧑‍🤝‍🧑', 1);
 
@@ -203,19 +169,3 @@ INSERT INTO rules_details (name, description, game_id) VALUES
 ('كرت الإنقاذ',  'متاح مرة واحدة لكل لاعب في اللعبة', 1),
 ('الفائز',       'اللاعب الأعلى نقاطاً في نهاية الجولات', 1),
 ('الحد الأدنى',  'لازم يكون في ٣ لاعبين على الأقل', 1);
-
-
-
-
-
-ALTER TABLE card
-ADD CONSTRAINT card_name_game_unique UNIQUE (name, game_id);
-
-ALTER TABLE device
-DROP CONSTRAINT device_code_details_id_fkey;
-
-ALTER TABLE device
-ADD CONSTRAINT device_code_details_id_fkey
-FOREIGN KEY (code_details_id)
-REFERENCES code_details(id)
-ON DELETE CASCADE;

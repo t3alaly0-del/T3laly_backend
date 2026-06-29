@@ -2,9 +2,6 @@ const express = require('express');
 const router  = express.Router();
 const ctrl    = require('../controllers/admin.controller');
 
-router.get('/card-types',                    ctrl.getCardTypes);
-router.get('/judge-categories/:game_id',     ctrl.getJudgeCategories);
-
 router.get('/judges/:game_id',  ctrl.getJudges);
 router.post('/judges',          ctrl.addJudge);
 router.patch('/judges/:id',     ctrl.updateJudge);
