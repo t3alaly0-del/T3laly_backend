@@ -13,17 +13,51 @@ exports.getCards = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+exports.getGameScreenCards = async (req, res) => {
+  const { game_id } = req.params;
+
+  try {
+    const result = await db.query(
+      `
+      SELECT
+        name,
+        emoji,
+        score,
+        abstract_desc,
+        detailed_desc
+      FROM card
+      WHERE game_id = $1
+      `,
+      [game_id]
+    );
+
+    const response = {};
+
+    result.rows.forEach(card => {
+      response[card.name.toLowerCase()] = card;
+    });
+
+    res.json(response);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: 'Server error',
+    });
+  }
+};
 
 // PATCH /api/cards/details/:id — admin: update score and/or quantity on card type
 exports.updateCardDetail = async (req, res) => {
   const { id } = req.params;
-  const { score, quantity } = req.body;
+  const { score, quantity, is_one_time } = req.body;
 
   const fields = [];
   const values = [];
   let idx = 1;
-  if (score    !== undefined) { fields.push(`score    = $${idx++}`); values.push(score); }
-  if (quantity !== undefined) { fields.push(`quantity = $${idx++}`); values.push(quantity); }
+  if (score       !== undefined) { fields.push(`score       = $${idx++}`); values.push(score); }
+  if (quantity    !== undefined) { fields.push(`quantity    = $${idx++}`); values.push(quantity); }
+  if (is_one_time !== undefined) { fields.push(`is_one_time = $${idx++}`); values.push(is_one_time); }
   if (fields.length === 0)
     return res.status(400).json({ error: 'Nothing to update' });
 

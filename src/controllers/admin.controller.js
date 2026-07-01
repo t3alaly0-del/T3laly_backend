@@ -1,5 +1,33 @@
 const db = require('../config/db');
 
+// ── CARD TYPES ────────────────────────────
+
+// GET /api/admin/card-types
+exports.getCardTypes = async (req, res) => {
+  try {
+    const result = await db.query(`SELECT * FROM card_type ORDER BY id`);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// ── JUDGE CATEGORIES ──────────────────────
+
+// GET /api/admin/judge-categories/:game_id
+exports.getJudgeCategories = async (req, res) => {
+  const { game_id } = req.params;
+  try {
+    const result = await db.query(
+      `SELECT * FROM judge_categories WHERE game_id = $1 ORDER BY id`,
+      [game_id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 // ── JUDGES ────────────────────────────────
 
 // GET /api/admin/judges/:game_id

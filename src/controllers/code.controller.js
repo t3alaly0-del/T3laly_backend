@@ -62,9 +62,25 @@ exports.activateCode = async (req, res) => {
     const code = result.rows[0];
 
     if (code.used) {
-      if (code.dev_id === device_identifier)
-        return res.json({ token: code.device_token, restore_code: code.restore_code });
-      return res.status(403).json({ error: 'Code already used by another device' });
+      if (code.dev_id === device_identifier) {
+        const gameResult = await db.query(
+          `SELECT c.game_id FROM code c JOIN code_details cd ON cd.code_id = c.id WHERE cd.id = $1`,
+          [code.id]
+        );
+        return res.json({ token: code.device_token, restore_code: code.restore_code, game_id: gameResult.rows[0]?.game_id });
+      }
+      // Different device — transfer ownership to new device
+      const new_token = crypto.randomBytes(32).toString('hex');
+      await db.query(
+        `UPDATE device SET device_identifier = $1, device_token = $2, device_token_issued_at = NOW()
+         WHERE code_details_id = $3`,
+        [device_identifier, new_token, code.id]
+      );
+      const gameResult = await db.query(
+        `SELECT c.game_id FROM code c JOIN code_details cd ON cd.code_id = c.id WHERE cd.id = $1`,
+        [code.id]
+      );
+      return res.json({ token: new_token, restore_code: code.restore_code, game_id: gameResult.rows[0]?.game_id, transferred: true });
     }
     if (code.status === 'close')
       return res.status(403).json({ error: 'Code is closed' });
@@ -75,12 +91,45 @@ exports.activateCode = async (req, res) => {
     const restore_code = 'RST-' + crypto.randomBytes(6).toString('hex').toUpperCase();
 
     await db.query(`UPDATE code_details SET used = true WHERE id = $1`, [code.id]);
+    // Get game_id from code chain
+    const gameResult = await db.query(
+      `SELECT c.game_id FROM code c
+       JOIN code_details cd ON cd.code_id = c.id
+       WHERE cd.id = $1`,
+      [code.id]
+    );
+    const game_id = gameResult.rows[0]?.game_id;
+
+    // Save device
     await db.query(
-      `INSERT INTO device (device_identifier, restore_code, code_details_id, device_token, device_token_issued_at)
+      `INSERT INTO device 
+       (device_identifier, restore_code, code_details_id, device_token, device_token_issued_at)
        VALUES ($1, $2, $3, $4, NOW())`,
       [device_identifier, restore_code, code.id, device_token]
     );
-    return res.json({ token: device_token, restore_code });
+
+    return res.json({ token: device_token, restore_code, game_id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// ── Mobile: get games owned by this device ────────────────────────────────
+
+exports.getMyGames = async (req, res) => {
+  const { device_id } = req.query;
+  if (!device_id) return res.status(400).json({ error: 'device_id required' });
+  try {
+    const result = await db.query(
+      `SELECT c.game_id
+       FROM device d
+       JOIN code_details cd ON cd.id = d.code_details_id
+       JOIN code c ON c.id = cd.code_id
+       WHERE d.device_identifier = $1`,
+      [device_id]
+    );
+    res.json({ game_ids: result.rows.map(r => r.game_id) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -239,6 +288,13 @@ exports.updateCode = async (req, res) => {
       values
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+    // When admin resets a code to unused, remove the device record so the
+    // app loses access on next sync
+    if (used === false) {
+      await db.query(`DELETE FROM device WHERE code_details_id = $1`, [id]);
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);

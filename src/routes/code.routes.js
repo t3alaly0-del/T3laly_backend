@@ -5,6 +5,7 @@ const ctrl    = require('../controllers/code.controller');
 // ── Mobile ─────────────────────────────────────
 router.post('/activate',              ctrl.activateCode);
 router.post('/restore',               ctrl.restoreCode);
+router.get('/my-games',               ctrl.getMyGames);
 
 // ── Admin: read ────────────────────────────────
 router.get('/game/:game_id',          ctrl.getGameCodes);
